@@ -1,0 +1,163 @@
+{
+  "name": "CAA Affidavit Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-affidavit",
+        "responseMode": "responseNode",
+        "options": {
+          "cors": true
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const requiredFields = [\n    'applicant_name', 'guardian_type', 'father_name',\n    'india_village', 'india_po', 'india_ps',\n    'india_district', 'india_pin', 'india_state',\n    'bd_village', 'bd_po', 'bd_ps', 'bd_district',\n    'entry_date', 'verification_date', 'advocate',\n    'witness_name', 'witness_guardian_type', 'witness_father',\n    'witness_age', 'witness_occupation',\n    'witness_village', 'witness_po', 'witness_ps',\n    'witness_district', 'witness_pin', 'witness_state'\n];\n\nconst body = items[0].json.body || {};\nconst missing = [];\n\nfor (const field of requiredFields) {\n    if (!body[field] || String(body[field]).trim() === '') {\n        missing.push(field);\n    }\n}\n\n// Specific format validation\nlet formatError = null;\nif (missing.length === 0) {\n    if (!/^\\d{6}$/.test(body.india_pin)) {\n        formatError = 'Indian PIN code must be exactly 6 digits';\n    }\n    if (!/^\\d{6}$/.test(body.witness_pin)) {\n        formatError = 'Witness PIN code must be exactly 6 digits';\n    }\n    if (!/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(body.entry_date)) {\n        formatError = 'Entry date must be in DD/MM/YYYY format';\n    }\n    if (!/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(body.verification_date)) {\n        formatError = 'Verification date must be in DD/MM/YYYY format';\n    }\n    if (!/^\\d{1,3}$/.test(body.witness_age)) {\n        formatError = 'Witness age must be a number';\n    } else {\n        const age = parseInt(body.witness_age, 10);\n        if (age < 1 || age > 150) {\n            formatError = 'Witness age must be between 1 and 150';\n        }\n    }\n}\n\nif (missing.length > 0) {\n    return [{\n        json: {\n            isValid: false,\n            error: `Missing required fields: ${missing.join(', ')}` \n        }\n    }];\n} else if (formatError) {\n    return [{\n        json: {\n            isValid: false,\n            error: formatError\n        }\n    }];\n}\n\n// Normalize casing for legal formatting\nconst sanitizedData = {\n    ...body,\n    applicant_name: body.applicant_name.toUpperCase().trim(),\n    father_name: body.father_name.toUpperCase().trim(),\n    witness_name: body.witness_name.toUpperCase().trim(),\n    witness_father: body.witness_father.toUpperCase().trim(),\n    witness_occupation: body.witness_occupation.toUpperCase().trim()\n};\n\nreturn [{\n    json: {\n        isValid: true,\n        data: sanitizedData\n    }\n}];"
+      },
+      "id": "validation-node",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isValid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid-node",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        690,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:5000/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.data) }}",
+        "options": {}
+      },
+      "id": "generate-documents-node",
+      "name": "Generate Documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        910,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "responseCode": 200
+      },
+      "id": "respond-success-node",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1130,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={\"success\": false, \"message\": \"{{ $json.error }}\"}"
+      },
+      "id": "respond-error-node",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        910,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "Generate Documents",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Documents": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionTimeout": -1
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": true
+}

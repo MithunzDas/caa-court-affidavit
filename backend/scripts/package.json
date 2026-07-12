@@ -1,0 +1,13 @@
+{
+  "name": "caa-affidavit-generator",
+  "version": "1.0.0",
+  "description": "CAA Court Affidavit DOCX generator using Docxtemplater",
+  "private": true,
+  "scripts": {
+    "generate": "node generate.js"
+  },
+  "dependencies": {
+    "docxtemplater": "^3.50.0",
+    "pizzip": "^3.1.7"
+  }
+}
