@@ -10,6 +10,39 @@ def format_document(file_path):
     print(f"Formatting document: {file_path}")
     doc = Document(file_path)
     
+    # Remove empty paragraphs that precede the second and third notary headers
+    # to prevent them from spilling over and creating vacant pages
+    paragraphs_to_remove = []
+    notary_count = 0
+    for i, paragraph in enumerate(doc.paragraphs):
+        text = paragraph.text.strip()
+        if text.startswith("Before the Notary Public"):
+            notary_count += 1
+            if notary_count in [2, 3]:
+                j = i - 1
+                while j >= 0:
+                    prev_p = doc.paragraphs[j]
+                    if not prev_p.text.strip():
+                        has_pb = False
+                        for run in prev_p.runs:
+                            for br in run._element.findall(qn('w:br')):
+                                if br.get(qn('w:type')) == 'page':
+                                    has_pb = True
+                                    break
+                            if has_pb:
+                                break
+                        if not has_pb:
+                            paragraphs_to_remove.append(prev_p)
+                        j -= 1
+                    else:
+                        break
+
+    for p in paragraphs_to_remove:
+        try:
+            p._element.getparent().remove(p._element)
+        except Exception as e:
+            print(f"Error removing empty paragraph: {e}")
+            
     # 1. Page Setup (apply A4 and 14cm top margin to all sections)
     for section in doc.sections:
         section.orientation = WD_ORIENT.PORTRAIT
@@ -67,7 +100,13 @@ def format_document(file_path):
             continue
             
         # Determine alignment based on legal document standards
-        if text.startswith("Before the Notary") or text == "AFFIDAVIT" or "VERIFICATION" in text:
+        if (
+            text.startswith("Before the Notary") or 
+            text == "AFFIDAVIT" or 
+            "VERIFICATION" in text or
+            "testifying the character" in text_lower or
+            "(vide item" in text_lower
+        ):
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         elif (
             "signature of applicant" in text_lower or 
@@ -82,12 +121,14 @@ def format_document(file_path):
         else:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
+        # Save original indentation to check for custom template layout (like witness signature blocks)
+        orig_left = paragraph.paragraph_format.left_indent
+        orig_first = paragraph.paragraph_format.first_line_indent
+
         # Determine if it is a list paragraph (needs special indent handling)
         pPr = paragraph._element.pPr
         is_list = False
         if pPr is not None and pPr.find(qn('w:numPr')) is not None:
-            is_list = True
-        elif paragraph.style.name.startswith('List') or 'list' in paragraph.style.name.lower():
             is_list = True
 
         # Paragraph format parameters
@@ -102,9 +143,14 @@ def format_document(file_path):
             pf.right_indent = Cm(0)
             pf.first_line_indent = Cm(-0.8)
         else:
-            pf.left_indent  = Cm(0)
+            if orig_left is not None and orig_left > Cm(0.1):
+                # Keep custom witness block formatting
+                pf.left_indent = orig_left
+                pf.first_line_indent = orig_first
+            else:
+                pf.left_indent  = Cm(0)
+                pf.first_line_indent = None
             pf.right_indent = Cm(0)
-            pf.first_line_indent = None
         
         # Compact line spacing (exactly 13pt) to prevent text overflow
         pf.line_spacing_rule = WD_LINE_SPACING.EXACTLY
