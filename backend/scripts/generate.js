@@ -51,6 +51,7 @@ const REQUIRED_FIELDS = [
     'entry_date', 'verification_date', 'advocate',
     'witness_name', 'witness_guardian_type', 'witness_father',
     'witness_age', 'witness_occupation',
+    'witness_id_type', 'witness_id_number',
     'witness_village', 'witness_po', 'witness_ps',
     'witness_district', 'witness_pin', 'witness_state'
 ];

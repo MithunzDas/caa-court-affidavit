@@ -30,6 +30,7 @@
         'entry_date', 'verification_date', 'advocate',
         'witness_name', 'witness_guardian_type', 'witness_father',
         'witness_age', 'witness_occupation',
+        'witness_id_type', 'witness_id_number',
         'witness_village', 'witness_po', 'witness_ps',
         'witness_district', 'witness_pin', 'witness_state'
     ];
@@ -61,6 +62,8 @@
         witness_father:       (v) => minLen(v, 2, 'Guardian name'),
         witness_age:          (v) => age(v),
         witness_occupation:   (v) => minLen(v, 2, 'Occupation'),
+        witness_id_type:      (v) => required(v, 'ID type'),
+        witness_id_number:    (v) => idNumber(v),
         witness_village:      (v) => minLen(v, 2, 'Village'),
         witness_po:           (v) => minLen(v, 2, 'Post office'),
         witness_ps:           (v) => minLen(v, 2, 'Police station'),
@@ -121,6 +124,25 @@
         if (!/^\d{1,3}$/.test(v)) return 'Age must be a number';
         const num = parseInt(v, 10);
         if (num < 1 || num > 150) return 'Age must be between 1 and 150';
+        return '';
+    }
+
+
+    /**
+     * Validate witness ID number based on the selected ID type.
+     * Aadhaar: exactly 12 digits (spaces allowed, e.g. 5006 8255 3483)
+     * EPIC:    letters/digits only, e.g. ABC1234567 (older cards may differ, so 6–20 chars allowed)
+     */
+    function idNumber(value) {
+        const v = value.trim();
+        const type = document.getElementById('witness_id_type').value;
+        if (type === 'EPIC') {
+            if (v === '') return 'EPIC number is required';
+            if (!/^[A-Z0-9\/]{6,20}$/.test(v)) return 'EPIC number must be 6–20 letters/digits (e.g., ABC1234567)';
+            return '';
+        }
+        if (v === '') return 'Aadhaar number is required';
+        if (!/^\d{12}$/.test(v.replace(/\s/g, ''))) return 'Aadhaar number must be exactly 12 digits';
         return '';
     }
 
@@ -205,6 +227,49 @@
     // Attach date formatters
     document.getElementById('entry_date').addEventListener('input', autoFormatDate);
     document.getElementById('verification_date').addEventListener('input', autoFormatDate);
+
+
+    // ──────────────────────────────────────────────────────────
+    // Witness ID (Aadhaar / EPIC) Input Handling
+    // ──────────────────────────────────────────────────────────
+
+    const idTypeSelect = document.getElementById('witness_id_type');
+    const idNumberInput = document.getElementById('witness_id_number');
+    const idNumberHint = document.getElementById('hint-witness_id_number');
+
+    /** Aadhaar: digits only, grouped as XXXX XXXX XXXX. EPIC: uppercase alphanumeric. */
+    function formatIdNumber() {
+        if (idTypeSelect.value === 'Aadhaar') {
+            const digits = idNumberInput.value.replace(/\D/g, '').substring(0, 12);
+            idNumberInput.value = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+        } else {
+            idNumberInput.value = idNumberInput.value.toUpperCase().replace(/[^A-Z0-9\/]/g, '');
+        }
+    }
+
+    /** Update placeholder, hint and keyboard to match the selected ID type. */
+    function updateIdTypeUI() {
+        if (idTypeSelect.value === 'Aadhaar') {
+            idNumberInput.placeholder = 'e.g., 5006 8255 3483';
+            idNumberInput.maxLength = 14;
+            idNumberInput.inputMode = 'numeric';
+            idNumberHint.textContent = '12-digit Aadhaar number';
+        } else {
+            idNumberInput.placeholder = 'e.g., ABC1234567';
+            idNumberInput.maxLength = 20;
+            idNumberInput.inputMode = 'text';
+            idNumberHint.textContent = 'EPIC (Voter ID) number, e.g., ABC1234567';
+        }
+    }
+
+    idNumberInput.addEventListener('input', formatIdNumber);
+    idTypeSelect.addEventListener('change', function () {
+        idNumberInput.value = '';
+        updateIdTypeUI();
+        const group = idNumberInput.closest('.form-group');
+        group.classList.remove('has-error');
+        document.getElementById('error-witness_id_number').textContent = '';
+    });
 
 
     // ──────────────────────────────────────────────────────────
@@ -462,6 +527,9 @@
 
         // Re-set verification date to today
         setTodayAsVerificationDate();
+
+        // Restore ID field placeholder/hint for the default type (Aadhaar)
+        updateIdTypeUI();
     }
 
 

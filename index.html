@@ -262,6 +262,25 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="witness_id_type">ID Type <span class="required">*</span></label>
+                        <select id="witness_id_type" name="witness_id_type" required>
+                            <option value="Aadhaar" selected>Aadhaar Card</option>
+                            <option value="EPIC">EPIC (Voter ID)</option>
+                        </select>
+                        <span class="error-message" id="error-witness_id_type"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="witness_id_number">Aadhaar / EPIC No. <span class="required">*</span></label>
+                        <input type="text" id="witness_id_number" name="witness_id_number"
+                               placeholder="e.g., 5006 8255 3483" required
+                               maxlength="14" inputmode="numeric"
+                               autocomplete="off">
+                        <span class="field-hint" id="hint-witness_id_number">12-digit Aadhaar number</span>
+                        <span class="error-message" id="error-witness_id_number"></span>
+                    </div>
+
+                    <div class="form-group">
                         <label for="witness_village">Village / Locality <span class="required">*</span></label>
                         <input type="text" id="witness_village" name="witness_village"
                                placeholder="e.g., K.N ROY ROAD" required minlength="2"
@@ -348,6 +367,7 @@
                             <option value="">Select Advocate...</option>
                             <option value="Debabrata Sarkar, Adv, F/1675/856/2020">Debabrata Sarkar — F/1675/856/2020</option>
                             <option value="Mou Roy, Adv, F/3594/1774/2025">Mou Roy — F/3594/1774/2025</option>
+                            <option value="Samrat Das, Adv, F/3094/2211/2025">Samrat Das — F/3094/2211/2025</option>
                         </select>
                         <span class="error-message" id="error-advocate"></span>
                     </div>
